@@ -139,7 +139,8 @@ all$Fbirdsd_abund<-c(sum(birdSD[birdSD$CN02!=0,1]), sum(birdSD[birdSD$CN03!=0,2]
 pp<-f %>% filter(plantPhalaenophily == 1)
 #2nd) we create a table with the list of species and abundance per sampling site:
 jj<-table(pp$scientificName,  pp$samplingLocationID)
-#transforming into a data.frame to calculate species richness and abundance:
+#transforming into a data.frame to calculate species richness and abundance of 
+#plantas pollinated by butterflies
 butPol<-as.data.frame.matrix(jj)
 all$Fbutpol<-c(length(butPol[butPol$CN02!=0,1]),length(butPol[butPol$CN03!=0,2]),length(butPol[butPol$CN05!=0,3]),length(butPol[butPol$CN06!=0,4]),length(butPol[butPol$CN10!=0,5]),length(butPol[butPol$CN11!=0,6])) 
 all$Fbutpol_abund<-c(sum(butPol[butPol$CN02!=0,1]), sum(butPol[butPol$CN03!=0,2]),sum(butPol[butPol$CN05!=0,3]), sum(butPol[butPol$CN06!=0,4]), sum(butPol[butPol$CN10!=0,5]),sum(butPol[butPol$CN11!=0,6]))
@@ -165,7 +166,7 @@ pp<-f %>% filter(plantPhalaenophily == 1)
 DBH_polM<-aggregate(plantDBH~samplingLocationID, data=pp, FUN=function(x) c(mean=mean(x)))
 all$plantDBH_polM<-DBH_polM[,2]
 #Looking at DBH of plants with seeds dispersed by Birds:
-op<-f %>% filter(plantOrnitophily == 1)
+op<-f %>% filter(plantOrnitochory == 1)
 DBH_seeD_birds<-aggregate(plantDBH~samplingLocationID, data=op, FUN=function(x) c(mean=mean(x)))
 all$plantDBH_seeD_birds<-DBH_seeD_birds[,2]
 
@@ -186,7 +187,7 @@ all$plantWoodDensity_polM<-round(woodDensity_polM[,2],2)
 #Wood density plants with seeds dispersed by birds:
 woodDensity_seeDbirds<-aggregate(plantWoodDensity~samplingLocationID, data=op, FUN=function(x) c(mean=mean(x)))
 all$plantWoodDensity_seeDbirds<-round(woodDensity_seeDbirds[,2],2)
-
+all
 
 A<-list()
 A[[1]]<-glm(rich_of_bees ~ 1, family="poisson", data=all)
@@ -228,17 +229,18 @@ Anb[[8]]<-glm.nb(rich_of_bees ~ plantWoodDensity,  data=all)
 model.sel(Anb, rank="AICc")
 
 
-###Instead of looking to how
+###Instead of looking to how the richness of bee that nest in cavities respond ("renters")
 levels(as.factor(aaa$samplingLocationID))
 table(aaa$beeNesting)
 table(aaa$beeNestLoc)
-
+##We select only bee species classified as renter
 renters<-aaa %>% filter(beeNestLoc=="renter")
 nrow(renters)
-jj<-table(renters$scientificName, renters$samplingLocationID)
-rentersB<-as.data.frame.matrix(jj)
+jj<-table(renters$scientificName, renters$samplingLocationID) ##calculate adundance per species
+rentersB<-as.data.frame.matrix(jj) #transform to data.frame to calculate richness and abundance
 all$rentersB<-c(length(rentersB[rentersB$CN02!=0,1]),length(rentersB[rentersB$CN03!=0,2]),length(rentersB[rentersB$CN05!=0,3]),length(rentersB[rentersB$CN06!=0,4]),length(rentersB[rentersB$CN10!=0,5]),length(rentersB[rentersB$CN11!=0,6])) 
 all$rentersB_abund<-c(sum(rentersB[rentersB$CN02!=0,1]), sum(rentersB[rentersB$CN03!=0,2]),sum(rentersB[rentersB$CN05!=0,3]), sum(rentersB[rentersB$CN06!=0,4]), sum(rentersB[rentersB$CN10!=0,5]),sum(rentersB[rentersB$CN11!=0,6]))
+
 
 R<-list()
 R[[1]]<-glm(rentersB ~ 1, family="poisson", data=all)
@@ -275,6 +277,106 @@ barplot(plantLF, legend.text = T, xlab="location ID", ylab="Frequency plants sps
 ### 3) Same can be done for richness of trees that depend on seed dispersal and the richness of birds
 ### 4) consider calculating abudance of trees that benefit form pollination and seed dispersals, 
 ### eventually dominance coudl be calculated as well
+
+B<-list()
+B[[1]]<-glm(rich_of_birds ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+B[[2]]<-glm(rich_of_birds ~ rich_flora,family="poisson", data=all)
+B[[3]]<-glm(rich_of_birds ~ Fbeepol, family="poisson",data=all)
+B[[4]]<-glm(rich_of_birds ~ Fbeepol_abund, family="poisson", data=all)
+B[[5]]<-glm(rich_of_birds ~ Fbirdpol, family="poisson", data=all)
+B[[6]]<-glm(rich_of_birds ~ Fbirdpol_abund, family="poisson", data=all)
+B[[7]]<-glm(rich_of_birds ~ Fbutpol, family="poisson", data=all)
+B[[8]]<-glm(rich_of_birds ~ Fbutpol_abund, family="poisson", data=all)
+B[[9]]<-glm(rich_of_birds ~ Fbirdsd, family="poisson", data=all)
+B[[10]]<-glm(rich_of_birds ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+B[[11]]<-glm(rich_of_birds ~ plantDBH.mean, family="poisson", data=all)
+B[[12]]<-glm(rich_of_birds ~ plantDBH.max, family="poisson", data=all)
+B[[13]]<-glm(rich_of_birds ~ plantDBH_pol, family="poisson", data=all)
+B[[14]]<-glm(rich_of_birds ~ plantDBH_polB, family="poisson", data=all)
+B[[15]]<-glm(rich_of_birds ~ plantDBH_polM, family="poisson", data=all)
+B[[16]]<-glm(rich_of_birds ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+B[[17]]<-glm(rich_of_birds ~ plantWoodDensity, family="poisson", data=all)
+B[[18]]<-glm(rich_of_birds ~ plantWoodDensity_pol, family="poisson", data=all)
+B[[19]]<-glm(rich_of_birds ~ plantWoodDensity_polB, family="poisson", data=all)
+B[[20]]<-glm(rich_of_birds ~ plantWoodDensity_polM, family="poisson", data=all)
+B[[21]]<-glm(rich_of_birds ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+head(model.sel(B, rank="AICc"),7) #Best: average DBH of the plant community 
+#################                                 that is pollinated by butterflies  B[[15]]
+
+visreg(B[[15]], "plantDBH_polM" , scale="response")
+plot(all$plantDBH.mean, all$rich_of_birds)
+
+
+Bd<-list()
+Bd[[1]]<-glm(rich_of_buterflies ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+Bd[[2]]<-glm(rich_of_buterflies ~ rich_flora,family="poisson", data=all)
+Bd[[3]]<-glm(rich_of_buterflies ~ Fbeepol, family="poisson",data=all)
+Bd[[4]]<-glm(rich_of_buterflies ~ Fbeepol_abund, family="poisson", data=all)
+Bd[[5]]<-glm(rich_of_buterflies ~ Fbirdpol, family="poisson", data=all)
+Bd[[6]]<-glm(rich_of_buterflies ~ Fbirdpol_abund, family="poisson", data=all)
+Bd[[7]]<-glm(rich_of_buterflies ~ Fbutpol, family="poisson", data=all)
+Bd[[8]]<-glm(rich_of_buterflies ~ Fbutpol_abund, family="poisson", data=all)
+Bd[[9]]<-glm(rich_of_buterflies ~ Fbirdsd, family="poisson", data=all)
+Bd[[10]]<-glm(rich_of_buterflies ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+Bd[[11]]<-glm(rich_of_buterflies ~ plantDBH.mean, family="poisson", data=all)
+Bd[[12]]<-glm(rich_of_buterflies ~ plantDBH.max, family="poisson", data=all)
+Bd[[13]]<-glm(rich_of_buterflies ~ plantDBH_pol, family="poisson", data=all)
+Bd[[14]]<-glm(rich_of_buterflies ~ plantDBH_polB, family="poisson", data=all)
+Bd[[15]]<-glm(rich_of_buterflies ~ plantDBH_polM, family="poisson", data=all)
+Bd[[16]]<-glm(rich_of_buterflies ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+Bd[[17]]<-glm(rich_of_buterflies ~ plantWoodDensity, family="poisson", data=all)
+Bd[[18]]<-glm(rich_of_buterflies ~ plantWoodDensity_pol, family="poisson", data=all)
+Bd[[19]]<-glm(rich_of_buterflies ~ plantWoodDensity_polB, family="poisson", data=all)
+Bd[[20]]<-glm(rich_of_buterflies ~ plantWoodDensity_polM, family="poisson", data=all)
+Bd[[21]]<-glm(rich_of_buterflies ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+head(model.sel(Bd, rank="AICc"),7) #Best: null  model, nothing explains  Butterfly richness
+
+visreg(B[[15]], "plantDBH_polM" , scale="response")
+
+###Instead of looking to how the richness of birds that are seed dispersers? ("renters")
+levels(as.factor(birds$samplingLocationID))
+table(birds$birdSeedDiet)
+table(birds$birdFruitDiet)
+##We select only bee species classified as renter
+Fruties<-birds %>% filter(birdFruitDiet!= 0)
+nrow(Fruties)
+jj<-table(Fruties$scientificName, Fruties$samplingLocationID) ##calculate adundance per species
+FrutiesB<-as.data.frame.matrix(jj) #transform to data.frame to calculate richness and abundance
+all$FrutiesB<-c(length(FrutiesB[FrutiesB$CN02!=0,1]),length(FrutiesB[FrutiesB$CN03!=0,2]),length(FrutiesB[FrutiesB$CN05!=0,3]),length(FrutiesB[FrutiesB$CN06!=0,4]),length(FrutiesB[FrutiesB$CN10!=0,5]),length(FrutiesB[FrutiesB$CN11!=0,6])) 
+
+FB<-list()
+FB[[1]]<-glm(FrutiesB ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+FB[[2]]<-glm(FrutiesB ~ rich_flora,family="poisson", data=all)
+FB[[3]]<-glm(FrutiesB ~ Fbeepol, family="poisson",data=all)
+FB[[4]]<-glm(FrutiesB ~ Fbeepol_abund, family="poisson", data=all)
+FB[[5]]<-glm(FrutiesB ~ Fbirdpol, family="poisson", data=all)
+FB[[6]]<-glm(FrutiesB ~ Fbirdpol_abund, family="poisson", data=all)
+FB[[7]]<-glm(FrutiesB ~ Fbutpol, family="poisson", data=all)
+FB[[8]]<-glm(FrutiesB ~ Fbutpol_abund, family="poisson", data=all)
+FB[[9]]<-glm(FrutiesB ~ Fbirdsd, family="poisson", data=all)
+FB[[10]]<-glm(FrutiesB ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+FB[[11]]<-glm(FrutiesB ~ plantDBH.mean, family="poisson", data=all)
+FB[[12]]<-glm(FrutiesB ~ plantDBH.max, family="poisson", data=all)
+FB[[13]]<-glm(FrutiesB ~ plantDBH_pol, family="poisson", data=all)
+FB[[14]]<-glm(FrutiesB ~ plantDBH_polB, family="poisson", data=all)
+FB[[15]]<-glm(FrutiesB ~ plantDBH_polM, family="poisson", data=all)
+FB[[16]]<-glm(FrutiesB ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+FB[[17]]<-glm(FrutiesB ~ plantWoodDensity, family="poisson", data=all)
+FB[[18]]<-glm(FrutiesB ~ plantWoodDensity_pol, family="poisson", data=all)
+FB[[19]]<-glm(FrutiesB ~ plantWoodDensity_polB, family="poisson", data=all)
+FB[[20]]<-glm(FrutiesB ~ plantWoodDensity_polM, family="poisson", data=all)
+FB[[21]]<-glm(FrutiesB ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+head(model.sel(FB, rank="AICc"),7) #Best: null  model, nothing explains  Butterfly richness
+
 
 
 require(ggplot2)
