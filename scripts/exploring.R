@@ -7,11 +7,12 @@ gitcreds_set()
 
 ##########Aqui comienza
 require(here)
+f<-read.csv(here("data","flora.csv"), sep=",")
+names(f)
+
 b<-read.csv(here("data", "bees.csv"), sep=",")
 head(b)
 names(b)
-f<-read.csv(here("data","flora.csv"), sep=",")
-names(f)
 a<-read.csv(here("data","birds.csv"), sep=",")
 names(a)
 butter<-read.csv(here("data" ,"buterflies.csv"), sep=",")
@@ -20,7 +21,7 @@ names(butter)
 table(f$samplingLocationID) ## 14 stations
 table(b$samplingLocationID) ##6 stations
 
-###Lets apply a filter to bee data set to analyze only the plot for which we have forest data:
+###Lets apply a filter to Animal_data set to analyze only the plot for which we have forest data:
 require(dplyr)
 aaa<- b %>% filter(samplingLocationID %in%  f$samplingLocationID)
 nrow(aaa)
@@ -35,7 +36,7 @@ nrow(bfs)
 table(bfs$samplingLocationID) ##What are the final locations
 
 ##Lets calculate total taxonomic richness for animals
-##1st Preparing a table showing species abudance per site:
+##1st Preparing a table showing species abundance per site:
 richness<-table(aaa$scientificName, aaa$samplingLocationID)
 rich_birds<-table(birds$scientificName, birds$samplingLocationID)
 rich_but<-table(butter$scientificName, butter$samplingLocationID)
@@ -45,7 +46,7 @@ rbds<-as.data.frame.matrix(rich_birds)
 rbuts<-as.data.frame.matrix(rich_but)
 
 #Calculating richness and abundance per group:
-##Bees:
+##Bees (richness = sum of rows without 0):
 rich_of_bees<-c(length(r[r$CN02!=0,1]),length(r[r$CN03!=0,2]),length(r[r$CN05!=0,3]),length(r[r$CN06!=0,4]),length(r[r$CN10!=0,5]),length(r[r$CN11!=0,6])) 
 abund_of_bees<-c(sum(r[r$CN02!=0,1]), sum(r[r$CN03!=0,2]),sum(r[r$CN05!=0,3]), sum(r[r$CN06!=0,4]), sum(r[r$CN10!=0,5]),sum(r[r$CN11!=0,6]))
 samplingLocationID<-c("CN02","CN03","CN05","CN06","CN10","CN11")
@@ -56,52 +57,27 @@ abund_of_birds<-c(sum(rbds[rbds$CN02!=0,1]), sum(rbds[rbds$CN03!=0,2]),sum(rbds[
 ##Buterflies
 rich_of_buterflies<-c(length(rbuts[rbuts$CN02!=0,1]),length(rbuts[rbuts$CN03!=0,2]),length(rbuts[rbuts$CN05!=0,3]),length(rbuts[rbuts$CN06!=0,4]),length(rbuts[rbuts$CN10!=0,5]),length(rbuts[rbuts$CN11!=0,6])) 
 abund_of_buterflies<-c(sum(rbuts[rbuts$CN02!=0,1]), sum(rbuts[rbuts$CN03!=0,2]),sum(rbuts[rbuts$CN05!=0,3]), sum(rbuts[rbuts$CN06!=0,4]), sum(rbuts[rbuts$CN10!=0,5]),sum(rbuts[rbuts$CN11!=0,6]))
-###Joining:
+###Joining richness (and abundace) data:
 animais<-data.frame(rich_of_bees, abund_of_bees,rich_of_birds, abund_of_birds,rich_of_buterflies, abund_of_buterflies, samplingLocationID)
 head(animais)
 
-##Plants
+##Calculating richness and abundance for Plants:
+#1st) reorganizing data:
 richnessF<-as.data.frame.matrix(table(f$scientificName, f$samplingLocationID))
+#2nd) computing richness and abudance
 rich_flora<-c(length(richnessF[richnessF$CN02!=0,1]),length(richnessF[richnessF$CN03!=0,2]),length(richnessF[richnessF$CN05!=0,3]),length(richnessF[richnessF$CN06!=0,4]),length(richnessF[richnessF$CN10!=0,5]),length(richnessF[richnessF$CN11!=0,6])) 
 abund_flora<-c(sum(richnessF[richnessF$CN02!=0,1]), sum(richnessF[richnessF$CN03!=0,2]),sum(richnessF[richnessF$CN05!=0,3]), sum(richnessF[richnessF$CN06!=0,4]), sum(richnessF[richnessF$CN10!=0,5]),sum(richnessF[richnessF$CN11!=0,6]))
+#Joining data with plot ID:
 flora<-data.frame(rich_flora, abund_flora, samplingLocationID)
 ###Relating flora richness with forest with bee, bird and butterfly richness:
 plot(flora$rich_flora, animais$rich_of_bees)
 plot(flora$rich_flora, animais$rich_of_birds)
 plot(animais$rich_flora, animais$rich_of_buterflies)
-
+##Joining all data together
 all<-data.frame(rich_flora, abund_flora,rich_of_bees, abund_of_bees,rich_of_birds, abund_of_birds,rich_of_buterflies, abund_of_buterflies, samplingLocationID)
-require(MASS)
-require(MuMIn)
-ojo<-glm(rich_of_bees ~ rich_flora,family="poisson", data=all)
-summary(ojo)
-require(visreg)
-visreg(ojo,"rich_flora", scale="response", partial=T)
-visreg(ojo)
-plot(ojo)   
-##MOdel selection:
-O<-list()
-O[[1]]<-glm.nb(rich_of_bees ~ 1, data=all)
-O[[2]]<-glm.nb(rich_of_bees ~ rich_flora, data=all)
-O[[3]]<-glm.nb(rich_of_bees ~ rich_of_birds, data=all)
-O[[4]]<-glm.nb(rich_of_bees ~ rich_of_buterflies, data=all)
-model.sel(O, rank="AICc")
 
-O<-list()
-O[[1]]<-glm(rich_of_bees ~ 1, family="poisson", data=all)
-O[[2]]<-glm(rich_of_bees ~ rich_flora,family="poisson", data=all)
-O[[3]]<-glm(rich_of_bees ~ rich_of_birds, family="poisson",data=all)
-O[[4]]<-glm(rich_of_bees ~ rich_of_buterflies, family="poisson", data=all)
-model.sel(O, rank="AICc")
-
-A<-list()
-A[[1]]<-glm(rich_of_birds ~ 1, family="poisson", data=all)
-A[[2]]<-glm(rich_of_birds ~ rich_flora,family="poisson", data=all)
-A[[3]]<-glm(rich_of_birds ~ rich_of_bees, family="poisson",data=all)
-A[[4]]<-glm(rich_of_birds ~ rich_of_buterflies, family="poisson", data=all)
-model.sel(A, rank="AICc")
-
-###Let's calculate richness per functional category:
+###Calculating Richness per Functional trait Category of the Plants:
+#Remembering the variables available for plant data:
 names(f)
 ####Working with plantMelithophily 
 #1st) Select only those species with value 1 == pollinated by bees
@@ -188,6 +164,299 @@ all$plantWoodDensity_polM<-round(woodDensity_polM[,2],2)
 woodDensity_seeDbirds<-aggregate(plantWoodDensity~samplingLocationID, data=op, FUN=function(x) c(mean=mean(x)))
 all$plantWoodDensity_seeDbirds<-round(woodDensity_seeDbirds[,2],2)
 all
+
+
+###List of threatened species:
+############ Aggregating categories: 
+## NoData= DD, data deficient (9) + NE, not evaluated (659)
+## NotEndangared= LC, least concern (1544) + NT, near threathened (11)
+## Threat= EN, endangered (16) + VU, vulnerable (39) + NT, near threathened (11)
+
+#1st) Calculating speciess richness and abundance of the threat category:
+threattt<-f %>% filter(categoryThreatIUCN == "EN" |categoryThreatIUCN == "VU" |categoryThreatIUCN == "NT" )
+nrow(threattt)
+##Tansforming species data on table with species abudance per site:
+amea<-as.data.frame.matrix(table(threattt$scientificName, threattt$samplingLocationID))
+##Calculating richnnes and abudance of threathened species (EN+VU+NT)
+all$Fthreat<-c(length(amea[amea$CN02!=0,1]),length(amea[amea$CN03!=0,2]),length(amea[amea$CN05!=0,3]),length(amea[amea$CN06!=0,4]),length(amea[amea$CN10!=0,5]),length(amea[amea$CN11!=0,6])) 
+all$Fthreat_abund<-c(sum(amea[amea$CN02!=0,1]), sum(amea[amea$CN03!=0,2]),sum(amea[amea$CN05!=0,3]), sum(amea[amea$CN06!=0,4]), sum(amea[amea$CN10!=0,5]),sum(amea[amea$CN11!=0,6]))
+head(all)
+
+
+####Calculate other traits per animal species to use as response variable:
+#a) For bees: ITD , sociality, Nest type (renters)
+ITD<-aggregate(beeITDist~samplingLocationID, data=aaa, FUN=function(x) c(mean=mean(x)))
+all$ITD<-round(ITD[,2],2)
+
+###Instead of looking to how the richness of bee that nest in cavities respond ("renters")
+table(aaa$beeNesting); table(aaa$beeNestLoc)
+##We select only bee species classified as renter
+renters<-aaa %>% filter(beeNestLoc=="renter")
+nrow(renters)
+rentersB<-as.data.frame.matrix(table(renters$scientificName, renters$samplingLocationID)) ##calculate adundance per species
+##transform to data.frame to calculate richness and abundance
+all$rentersB<-c(length(rentersB[rentersB$CN02!=0,1]),length(rentersB[rentersB$CN03!=0,2]),length(rentersB[rentersB$CN05!=0,3]),length(rentersB[rentersB$CN06!=0,4]),length(rentersB[rentersB$CN10!=0,5]),length(rentersB[rentersB$CN11!=0,6])) 
+all$rentersB_abund<-c(sum(rentersB[rentersB$CN02!=0,1]), sum(rentersB[rentersB$CN03!=0,2]),sum(rentersB[rentersB$CN05!=0,3]), sum(rentersB[rentersB$CN06!=0,4]), sum(rentersB[rentersB$CN10!=0,5]),sum(rentersB[rentersB$CN11!=0,6]))
+###Calculating ITD dos renters:
+ITD_renters<-aggregate(beeITDist~samplingLocationID, data=renters, FUN=function(x) c(mean=mean(x)))
+all$ITD_renters<-round(ITD_renters[,2],2)
+plot(all$ITD, all$ITD_renters)
+
+###Sociality (richness of eusocial and solitary bees):
+table(aaa$beeSociality)
+social<-aaa %>% filter(beeSociality=="Social"); nrow(social) #458
+solitary<-aaa %>% filter(beeSociality=="solitary" |beeSociality=="Solitary"); nrow(solitary) #69
+solitary2<-aaa %>% 
+  filter(beeSociality=="solitary" |beeSociality=="Solitary"|beeSociality=="semi_social"); nrow(solitary2) #274
+##for Eusocial species (stingless bees!)
+sociality<-as.data.frame.matrix(table(social$scientificName, social$samplingLocationID))
+all$sociality<-c(length(sociality[sociality$CN02!=0,1]),length(sociality[sociality$CN03!=0,2]),length(sociality[sociality$CN05!=0,3]),length(sociality[sociality$CN06!=0,4]),length(sociality[sociality$CN10!=0,5]),length(sociality[sociality$CN11!=0,6])) 
+solitarity<-as.data.frame.matrix(table(solitary$scientificName, solitary$samplingLocationID))
+solitarity2<-as.data.frame.matrix(table(solitary2$scientificName, solitary2$samplingLocationID))
+all$solitarity<-c(length(solitarity[solitarity$CN02!=0,1]),length(solitarity[solitarity$CN03!=0,2]),length(solitarity[solitarity$CN05!=0,3]),length(solitarity[solitarity$CN06!=0,4]),length(solitarity[solitarity$CN10!=0,5]),length(solitarity[solitarity$CN11!=0,6])) 
+all$solitarity2<-c(length(solitarity2[solitarity2$CN02!=0,1]),length(solitarity2[solitarity2$CN03!=0,2]),length(solitarity2[solitarity2$CN05!=0,3]),length(solitarity2[solitarity2$CN06!=0,4]),length(solitarity2[solitarity2$CN10!=0,5]),length(solitarity2[solitarity2$CN11!=0,6])) 
+###Bee size for each sociality category:
+#Eusocial:
+ITD_social<-aggregate(beeITDist~samplingLocationID, data=social, FUN=function(x) c(mean=mean(x)))
+all$ITD_social<-round(ITD_social[,2],2)
+#Only solitary species:
+ITD_solitary<-aggregate(beeITDist~samplingLocationID, data=solitary, FUN=function(x) c(mean=mean(x)))
+all$ITD_solitary<-round(ITD_solitary[,2],2)
+##Solitary and semi_social (solitary2):
+ITD_solitary2<-aggregate(beeITDist~samplingLocationID, data=solitary2, FUN=function(x) c(mean=mean(x)))
+all$ITD_solitary2<-round(ITD_solitary2[,2],2)
+names(all)
+
+#b) Bird size:
+names(birds)
+#Categorical:
+ table(birds$categoryThreatIUCN); table(birds$birdCanopyForStrat)
+ameaçadas<-birds %>% filter(categoryThreatIUCN=="EN"|categoryThreatIUCN=="NT"|categoryThreatIUCN=="VU")
+  nrow(ameaçadas)
+threat_birds<-as.data.frame.matrix(table(ameaçadas$scientificName, ameaçadas$samplingLocationID))  
+all$rich_of_birds_threat<- c(length(threat_birds[threat_birds$CN02!=0,1]),length(threat_birds[threat_birds$CN03!=0,2]),length(threat_birds[threat_birds$CN05!=0,3]),length(threat_birds[threat_birds$CN06!=0,4]),length(threat_birds[threat_birds$CN10!=0,5]),length(threat_birds[threat_birds$CN11!=0,6])) 
+  #Continuous:
+##Hand Wing Index
+summary(birds$handWingIndex) ##434 NAs
+BHWI<-aggregate(handWingIndex~samplingLocationID, data=birds, FUN=function(x) c(mean=mean(x)))
+all$Bird_handWingIndex<-round(BHWI[,2],2)  
+##Bird Body Mass (log)
+summary(birds$birdBodyMassLog) #434 NAs
+BBM<-aggregate(birdBodyMassLog~samplingLocationID, data=birds, FUN=function(x) c(mean=mean(x)))
+all$birdBodyMassLog<-round(BBM[,2],2)  
+##Body mass of threathened species 
+Birdhreat<-aggregate(birdBodyMassLog~samplingLocationID, data=ameaçadas, FUN=function(x) c(mean=mean(x)))
+all$birdBodyMassLog_threat<-round(Birdhreat[,2],2)
+##Richness of species with Fruit Diet:
+table(birds$birdFruitDiet)
+##We select only bird species classified as having fruit diet:
+Fruties<-birds %>% filter(birdFruitDiet!= 0); nrow(Fruties)
+FrutiesB<-as.data.frame.matrix(table(Fruties$scientificName, Fruties$samplingLocationID)) ##calculate adundance per species
+ # .... and transform to data.frame to calculate richness and abundance
+all$FrutiesB<-c(length(FrutiesB[FrutiesB$CN02!=0,1]),length(FrutiesB[FrutiesB$CN03!=0,2]),length(FrutiesB[FrutiesB$CN05!=0,3]),length(FrutiesB[FrutiesB$CN06!=0,4]),length(FrutiesB[FrutiesB$CN10!=0,5]),length(FrutiesB[FrutiesB$CN11!=0,6])) 
+
+
+#c) Butterfly size 
+
+
+
+##Building model selection:
+require(MASS)
+require(MuMIn)
+ojo<-glm(rich_of_bees ~ rich_flora,family="poisson", data=all)
+summary(ojo)
+require(visreg)
+
+A<-list()
+A[[1]]<-glm(rich_of_bees ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+A[[2]]<-glm(rich_of_bees ~ rich_flora,family="poisson", data=all)
+A[[3]]<-glm(rich_of_bees ~ Fbeepol, family="poisson",data=all)
+A[[4]]<-glm(rich_of_bees ~ Fbeepol_abund, family="poisson", data=all)
+A[[5]]<-glm(rich_of_bees ~ Fbirdpol, family="poisson", data=all)
+A[[6]]<-glm(rich_of_bees ~ Fbirdpol_abund, family="poisson", data=all)
+A[[7]]<-glm(rich_of_bees ~ Fbutpol, family="poisson", data=all)
+A[[8]]<-glm(rich_of_bees ~ Fbutpol_abund, family="poisson", data=all)
+A[[9]]<-glm(rich_of_bees ~ Fbirdsd, family="poisson", data=all)
+A[[10]]<-glm(rich_of_bees ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+A[[11]]<-glm(rich_of_bees ~ plantDBH.mean, family="poisson", data=all)
+A[[12]]<-glm(rich_of_bees ~ plantDBH.max, family="poisson", data=all)
+A[[13]]<-glm(rich_of_bees ~ plantDBH_pol, family="poisson", data=all)
+A[[14]]<-glm(rich_of_bees ~ plantDBH_polB, family="poisson", data=all)
+A[[15]]<-glm(rich_of_bees ~ plantDBH_polM, family="poisson", data=all)
+A[[16]]<-glm(rich_of_bees ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+A[[17]]<-glm(rich_of_bees ~ plantWoodDensity, family="poisson", data=all)
+A[[18]]<-glm(rich_of_bees ~ plantWoodDensity_pol, family="poisson", data=all)
+A[[19]]<-glm(rich_of_bees ~ plantWoodDensity_polB, family="poisson", data=all)
+A[[20]]<-glm(rich_of_bees ~ plantWoodDensity_polM, family="poisson", data=all)
+A[[21]]<-glm(rich_of_bees ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+### Richness and abundance of Threathened tree species:
+A[[22]]<-glm(rich_of_bees ~ Fthreat, family="poisson", data=all)
+A[[23]]<-glm(rich_of_bees ~ Fthreat_abund, family="poisson", data=all)
+head(model.sel(A, rank="AICc"),7) #Best: average DBH of the plant community 
+#################  
+
+Ar<-list()
+Ar[[1]]<-glm(rentersB ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+Ar[[2]]<-glm(rentersB ~ rich_flora,family="poisson", data=all)
+Ar[[3]]<-glm(rentersB ~ Fbeepol, family="poisson",data=all)
+Ar[[4]]<-glm(rentersB ~ Fbeepol_abund, family="poisson", data=all)
+Ar[[5]]<-glm(rentersB ~ Fbirdpol, family="poisson", data=all)
+Ar[[6]]<-glm(rentersB ~ Fbirdpol_abund, family="poisson", data=all)
+Ar[[7]]<-glm(rentersB ~ Fbutpol, family="poisson", data=all)
+Ar[[8]]<-glm(rentersB ~ Fbutpol_abund, family="poisson", data=all)
+Ar[[9]]<-glm(rentersB ~ Fbirdsd, family="poisson", data=all)
+Ar[[10]]<-glm(rentersB ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+Ar[[11]]<-glm(rentersB ~ plantDBH.mean, family="poisson", data=all)
+Ar[[12]]<-glm(rentersB ~ plantDBH.max, family="poisson", data=all)
+Ar[[13]]<-glm(rentersB ~ plantDBH_pol, family="poisson", data=all)
+Ar[[14]]<-glm(rentersB ~ plantDBH_polB, family="poisson", data=all)
+Ar[[15]]<-glm(rentersB ~ plantDBH_polM, family="poisson", data=all)
+Ar[[16]]<-glm(rentersB ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+Ar[[17]]<-glm(rentersB ~ plantWoodDensity, family="poisson", data=all)
+Ar[[18]]<-glm(rentersB ~ plantWoodDensity_pol, family="poisson", data=all)
+Ar[[19]]<-glm(rentersB ~ plantWoodDensity_polB, family="poisson", data=all)
+Ar[[20]]<-glm(rentersB ~ plantWoodDensity_polM, family="poisson", data=all)
+Ar[[21]]<-glm(rentersB ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+### Richness and abundance of Threathened tree species:
+Ar[[22]]<-glm(rentersB ~ Fthreat, family="poisson", data=all)
+Ar[[23]]<-glm(rentersB ~ Fthreat_abund, family="poisson", data=all)
+head(model.sel(Ar, rank="AICc"),7) #Best: average DBH of the plant community, wood density and richnes of threathened species 
+#################  
+
+Euso<-list()
+Euso[[1]]<-glm(sociality ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+Euso[[2]]<-glm(sociality ~ rich_flora,family="poisson", data=all)
+Euso[[3]]<-glm(sociality ~ Fbeepol, family="poisson",data=all)
+Euso[[4]]<-glm(sociality ~ Fbeepol_abund, family="poisson", data=all)
+Euso[[5]]<-glm(sociality ~ Fbirdpol, family="poisson", data=all)
+Euso[[6]]<-glm(sociality ~ Fbirdpol_abund, family="poisson", data=all)
+Euso[[7]]<-glm(sociality ~ Fbutpol, family="poisson", data=all)
+Euso[[8]]<-glm(sociality ~ Fbutpol_abund, family="poisson", data=all)
+Euso[[9]]<-glm(sociality ~ Fbirdsd, family="poisson", data=all)
+Euso[[10]]<-glm(sociality ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+Euso[[11]]<-glm(sociality ~ plantDBH.mean, family="poisson", data=all)
+Euso[[12]]<-glm(sociality ~ plantDBH.max, family="poisson", data=all)
+Euso[[13]]<-glm(sociality ~ plantDBH_pol, family="poisson", data=all)
+Euso[[14]]<-glm(sociality ~ plantDBH_polB, family="poisson", data=all)
+Euso[[15]]<-glm(sociality ~ plantDBH_polM, family="poisson", data=all)
+Euso[[16]]<-glm(sociality ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+Euso[[17]]<-glm(sociality ~ plantWoodDensity, family="poisson", data=all)
+Euso[[18]]<-glm(sociality ~ plantWoodDensity_pol, family="poisson", data=all)
+Euso[[19]]<-glm(sociality ~ plantWoodDensity_polB, family="poisson", data=all)
+Euso[[20]]<-glm(sociality ~ plantWoodDensity_polM, family="poisson", data=all)
+Euso[[21]]<-glm(sociality ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+### Richness and abundance of Threathened tree species:
+Euso[[22]]<-glm(sociality ~ Fthreat, family="poisson", data=all)
+Euso[[23]]<-glm(sociality ~ Fthreat_abund, family="poisson", data=all)
+head(model.sel(Euso, rank="AICc"),7) #Best: average DBH of the plant community, wood density and richnes of threathened species 
+#################  
+
+
+soli<-list()
+soli[[1]]<-glm(solitarity ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+soli[[2]]<-glm(solitarity ~ rich_flora,family="poisson", data=all)
+soli[[3]]<-glm(solitarity ~ Fbeepol, family="poisson",data=all)
+soli[[4]]<-glm(solitarity ~ Fbeepol_abund, family="poisson", data=all)
+soli[[5]]<-glm(solitarity ~ Fbirdpol, family="poisson", data=all)
+soli[[6]]<-glm(solitarity ~ Fbirdpol_abund, family="poisson", data=all)
+soli[[7]]<-glm(solitarity ~ Fbutpol, family="poisson", data=all)
+soli[[8]]<-glm(solitarity ~ Fbutpol_abund, family="poisson", data=all)
+soli[[9]]<-glm(solitarity ~ Fbirdsd, family="poisson", data=all)
+soli[[10]]<-glm(solitarity ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+soli[[11]]<-glm(solitarity ~ plantDBH.mean, family="poisson", data=all)
+soli[[12]]<-glm(solitarity ~ plantDBH.max, family="poisson", data=all)
+soli[[13]]<-glm(solitarity ~ plantDBH_pol, family="poisson", data=all)
+soli[[14]]<-glm(solitarity ~ plantDBH_polB, family="poisson", data=all)
+soli[[15]]<-glm(solitarity ~ plantDBH_polM, family="poisson", data=all)
+soli[[16]]<-glm(solitarity ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+soli[[17]]<-glm(solitarity ~ plantWoodDensity, family="poisson", data=all)
+soli[[18]]<-glm(solitarity ~ plantWoodDensity_pol, family="poisson", data=all)
+soli[[19]]<-glm(solitarity ~ plantWoodDensity_polB, family="poisson", data=all)
+soli[[20]]<-glm(solitarity ~ plantWoodDensity_polM, family="poisson", data=all)
+soli[[21]]<-glm(solitarity ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+### Richness and abundance of Threathened tree species:
+soli[[22]]<-glm(solitarity ~ Fthreat, family="poisson", data=all)
+soli[[23]]<-glm(solitarity ~ Fthreat_abund, family="poisson", data=all)
+head(model.sel(soli, rank="AICc"),7) #Best: average DBH of the plant community, wood density and richnes of threathened species 
+#################  
+
+soli2<-list()
+soli2[[1]]<-glm(solitarity2 ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+soli2[[2]]<-glm(solitarity2 ~ rich_flora,family="poisson", data=all)
+soli2[[3]]<-glm(solitarity2 ~ Fbeepol, family="poisson",data=all)
+soli2[[4]]<-glm(solitarity2 ~ Fbeepol_abund, family="poisson", data=all)
+soli2[[5]]<-glm(solitarity2 ~ Fbirdpol, family="poisson", data=all)
+soli2[[6]]<-glm(solitarity2 ~ Fbirdpol_abund, family="poisson", data=all)
+soli2[[7]]<-glm(solitarity2 ~ Fbutpol, family="poisson", data=all)
+soli2[[8]]<-glm(solitarity2 ~ Fbutpol_abund, family="poisson", data=all)
+soli2[[9]]<-glm(solitarity2 ~ Fbirdsd, family="poisson", data=all)
+soli2[[10]]<-glm(solitarity2 ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+soli2[[11]]<-glm(solitarity2 ~ plantDBH.mean, family="poisson", data=all)
+soli2[[12]]<-glm(solitarity2 ~ plantDBH.max, family="poisson", data=all)
+soli2[[13]]<-glm(solitarity2 ~ plantDBH_pol, family="poisson", data=all)
+soli2[[14]]<-glm(solitarity2 ~ plantDBH_polB, family="poisson", data=all)
+soli2[[15]]<-glm(solitarity2 ~ plantDBH_polM, family="poisson", data=all)
+soli2[[16]]<-glm(solitarity2 ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+soli2[[17]]<-glm(solitarity2 ~ plantWoodDensity, family="poisson", data=all)
+soli2[[18]]<-glm(solitarity2 ~ plantWoodDensity_pol, family="poisson", data=all)
+soli2[[19]]<-glm(solitarity2 ~ plantWoodDensity_polB, family="poisson", data=all)
+soli2[[20]]<-glm(solitarity2 ~ plantWoodDensity_polM, family="poisson", data=all)
+soli2[[21]]<-glm(solitarity2 ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+### Richness and abundance of Threathened tree species:
+soli2[[22]]<-glm(solitarity2 ~ Fthreat, family="poisson", data=all)
+soli2[[23]]<-glm(solitarity2 ~ Fthreat_abund, family="poisson", data=all)
+head(model.sel(soli2, rank="AICc"),7) #Best: average DBH of the plant community, wood density and richnes of threathened species 
+#############
+
+b_itd<-list()
+b_itd[[1]]<-lm(ITD_solitary2 ~ 1,  data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+b_itd[[2]]<-lm(ITD_solitary2 ~ rich_flora, data=all)
+b_itd[[3]]<-lm(ITD_solitary2 ~ Fbeepol, data=all)
+b_itd[[4]]<-lm(ITD_solitary2 ~ Fbeepol_abund, data=all)
+b_itd[[5]]<-lm(ITD_solitary2 ~ Fbirdpol, data=all)
+b_itd[[6]]<-lm(ITD_solitary2 ~ Fbirdpol_abund, data=all)
+b_itd[[7]]<-lm(ITD_solitary2 ~ Fbutpol, data=all)
+b_itd[[8]]<-lm(ITD_solitary2 ~ Fbutpol_abund, data=all)
+b_itd[[9]]<-lm(ITD_solitary2 ~ Fbirdsd, data=all)
+b_itd[[10]]<-lm(ITD_solitary2 ~ Fbirdsd_abund, data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+b_itd[[11]]<-lm(ITD_solitary2 ~ plantDBH.mean, data=all)
+b_itd[[12]]<-lm(ITD_solitary2 ~ plantDBH.max, data=all)
+b_itd[[13]]<-lm(ITD_solitary2 ~ plantDBH_pol, data=all)
+b_itd[[14]]<-lm(ITD_solitary2 ~ plantDBH_polB, data=all)
+b_itd[[15]]<-lm(ITD_solitary2 ~ plantDBH_polM, data=all)
+b_itd[[16]]<-lm(ITD_solitary2 ~ plantDBH_seeD_birds, data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+b_itd[[17]]<-lm(ITD_solitary2 ~ plantWoodDensity, data=all)
+b_itd[[18]]<-lm(ITD_solitary2 ~ plantWoodDensity_pol, data=all)
+b_itd[[19]]<-lm(ITD_solitary2 ~ plantWoodDensity_polB, data=all)
+b_itd[[20]]<-lm(ITD_solitary2 ~ plantWoodDensity_polM, data=all)
+b_itd[[21]]<-lm(ITD_solitary2 ~ plantWoodDensity_seeDbirds, data=all)
+### Richness and abundance of Threathened tree species:
+b_itd[[22]]<-lm(ITD_solitary2 ~ Fthreat, data=all)
+b_itd[[23]]<-lm(ITD_solitary2 ~ Fthreat_abund, data=all)
+head(model.sel(b_itd, rank="AICc"),7) #Best: snull model
+#null model: is the best
+hist(all$ITD_)
+
+
+
 
 A<-list()
 A[[1]]<-glm(rich_of_bees ~ 1, family="poisson", data=all)
@@ -303,11 +572,177 @@ B[[18]]<-glm(rich_of_birds ~ plantWoodDensity_pol, family="poisson", data=all)
 B[[19]]<-glm(rich_of_birds ~ plantWoodDensity_polB, family="poisson", data=all)
 B[[20]]<-glm(rich_of_birds ~ plantWoodDensity_polM, family="poisson", data=all)
 B[[21]]<-glm(rich_of_birds ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+### Richness and abundance of Threathened tree species:
+B[[22]]<-glm(rich_of_birds ~ Fthreat, family="poisson", data=all)
+B[[23]]<-glm(rich_of_birds ~ Fthreat_abund, family="poisson", data=all)
 head(model.sel(B, rank="AICc"),7) #Best: average DBH of the plant community 
 #################                                 that is pollinated by butterflies  B[[15]]
 
 visreg(B[[15]], "plantDBH_polM" , scale="response")
+visreg(B[[11]], "plantDBH.mean" , scale="response")
+visreg(B[[13]], "plantDBH_pol" , scale="response")
 plot(all$plantDBH.mean, all$rich_of_birds)
+
+##Bird functional traits as response:
+#1st) Richness of birds considered as threathened (NT, VU and EN)
+Bt<-list()
+Bt[[1]]<-glm(rich_of_birds_threat ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+Bt[[2]]<-glm(rich_of_birds_threat ~ rich_flora,family="poisson", data=all)
+Bt[[3]]<-glm(rich_of_birds_threat ~ Fbeepol, family="poisson",data=all)
+Bt[[4]]<-glm(rich_of_birds_threat ~ Fbeepol_abund, family="poisson", data=all)
+Bt[[5]]<-glm(rich_of_birds_threat ~ Fbirdpol, family="poisson", data=all)
+Bt[[6]]<-glm(rich_of_birds_threat ~ Fbirdpol_abund, family="poisson", data=all)
+Bt[[7]]<-glm(rich_of_birds_threat ~ Fbutpol, family="poisson", data=all)
+Bt[[8]]<-glm(rich_of_birds_threat ~ Fbutpol_abund, family="poisson", data=all)
+Bt[[9]]<-glm(rich_of_birds_threat ~ Fbirdsd, family="poisson", data=all)
+Bt[[10]]<-glm(rich_of_birds_threat ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+Bt[[11]]<-glm(rich_of_birds_threat ~ plantDBH.mean, family="poisson", data=all)
+Bt[[12]]<-glm(rich_of_birds_threat ~ plantDBH.max, family="poisson", data=all)
+Bt[[13]]<-glm(rich_of_birds_threat ~ plantDBH_pol, family="poisson", data=all)
+Bt[[14]]<-glm(rich_of_birds_threat ~ plantDBH_polB, family="poisson", data=all)
+Bt[[15]]<-glm(rich_of_birds_threat ~ plantDBH_polM, family="poisson", data=all)
+Bt[[16]]<-glm(rich_of_birds_threat ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+Bt[[17]]<-glm(rich_of_birds_threat ~ plantWoodDensity, family="poisson", data=all)
+Bt[[18]]<-glm(rich_of_birds_threat ~ plantWoodDensity_pol, family="poisson", data=all)
+Bt[[19]]<-glm(rich_of_birds_threat ~ plantWoodDensity_polB, family="poisson", data=all)
+Bt[[20]]<-glm(rich_of_birds_threat ~ plantWoodDensity_polM, family="poisson", data=all)
+Bt[[21]]<-glm(rich_of_birds_threat ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+### Richness and abundance of Threathened tree species:
+Bt[[22]]<-glm(rich_of_birds_threat ~ Fthreat, family="poisson", data=all)
+Bt[[23]]<-glm(rich_of_birds_threat ~ Fthreat_abund, family="poisson", data=all)
+head(model.sel(Bt, rank="AICc"),7) #Best: average DBH of the plant community 
+#################       
+#2nd) Birds with Fruit Diet:
+FB<-list()
+FB[[1]]<-glm(FrutiesB ~ 1, family="poisson", data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+FB[[2]]<-glm(FrutiesB ~ rich_flora,family="poisson", data=all)
+FB[[3]]<-glm(FrutiesB ~ Fbeepol, family="poisson",data=all)
+FB[[4]]<-glm(FrutiesB ~ Fbeepol_abund, family="poisson", data=all)
+FB[[5]]<-glm(FrutiesB ~ Fbirdpol, family="poisson", data=all)
+FB[[6]]<-glm(FrutiesB ~ Fbirdpol_abund, family="poisson", data=all)
+FB[[7]]<-glm(FrutiesB ~ Fbutpol, family="poisson", data=all)
+FB[[8]]<-glm(FrutiesB ~ Fbutpol_abund, family="poisson", data=all)
+FB[[9]]<-glm(FrutiesB ~ Fbirdsd, family="poisson", data=all)
+FB[[10]]<-glm(FrutiesB ~ Fbirdsd_abund, family="poisson", data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+FB[[11]]<-glm(FrutiesB ~ plantDBH.mean, family="poisson", data=all)
+FB[[12]]<-glm(FrutiesB ~ plantDBH.max, family="poisson", data=all)
+FB[[13]]<-glm(FrutiesB ~ plantDBH_pol, family="poisson", data=all)
+FB[[14]]<-glm(FrutiesB ~ plantDBH_polB, family="poisson", data=all)
+FB[[15]]<-glm(FrutiesB ~ plantDBH_polM, family="poisson", data=all)
+FB[[16]]<-glm(FrutiesB ~ plantDBH_seeD_birds, family="poisson", data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+FB[[17]]<-glm(FrutiesB ~ plantWoodDensity, family="poisson", data=all)
+FB[[18]]<-glm(FrutiesB ~ plantWoodDensity_pol, family="poisson", data=all)
+FB[[19]]<-glm(FrutiesB ~ plantWoodDensity_polB, family="poisson", data=all)
+FB[[20]]<-glm(FrutiesB ~ plantWoodDensity_polM, family="poisson", data=all)
+FB[[21]]<-glm(FrutiesB ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
+### Richness and abundance of Threathened tree species:
+FB[[22]]<-glm(FrutiesB ~ Fthreat, family="poisson", data=all)
+FB[[23]]<-glm(FrutiesB ~ Fthreat_abund, family="poisson", data=all)
+head(model.sel(FB, rank="AICc"),7) #Best: similar to overall richness
+#################       
+#3rd) Birds Hand Wing Index:
+BHW<-list()
+BHW[[1]]<-lm(Bird_handWingIndex ~ 1,  data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+BHW[[2]]<-lm(Bird_handWingIndex ~ rich_flora, data=all)
+BHW[[3]]<-lm(Bird_handWingIndex ~ Fbeepol, data=all)
+BHW[[4]]<-lm(Bird_handWingIndex ~ Fbeepol_abund, data=all)
+BHW[[5]]<-lm(Bird_handWingIndex ~ Fbirdpol, data=all)
+BHW[[6]]<-lm(Bird_handWingIndex ~ Fbirdpol_abund, data=all)
+BHW[[7]]<-lm(Bird_handWingIndex ~ Fbutpol, data=all)
+BHW[[8]]<-lm(Bird_handWingIndex ~ Fbutpol_abund, data=all)
+BHW[[9]]<-lm(Bird_handWingIndex ~ Fbirdsd, data=all)
+BHW[[10]]<-lm(Bird_handWingIndex ~ Fbirdsd_abund, data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+BHW[[11]]<-lm(Bird_handWingIndex ~ plantDBH.mean, data=all)
+BHW[[12]]<-lm(Bird_handWingIndex ~ plantDBH.max, data=all)
+BHW[[13]]<-lm(Bird_handWingIndex ~ plantDBH_pol, data=all)
+BHW[[14]]<-lm(Bird_handWingIndex ~ plantDBH_polB, data=all)
+BHW[[15]]<-lm(Bird_handWingIndex ~ plantDBH_polM, data=all)
+BHW[[16]]<-lm(Bird_handWingIndex ~ plantDBH_seeD_birds, data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+BHW[[17]]<-lm(Bird_handWingIndex ~ plantWoodDensity, data=all)
+BHW[[18]]<-lm(Bird_handWingIndex ~ plantWoodDensity_pol, data=all)
+BHW[[19]]<-lm(Bird_handWingIndex ~ plantWoodDensity_polB, data=all)
+BHW[[20]]<-lm(Bird_handWingIndex ~ plantWoodDensity_polM, data=all)
+BHW[[21]]<-lm(Bird_handWingIndex ~ plantWoodDensity_seeDbirds, data=all)
+### Richness and abundance of Threathened tree species:
+BHW[[22]]<-lm(Bird_handWingIndex ~ Fthreat, data=all)
+BHW[[23]]<-lm(Bird_handWingIndex ~ Fthreat_abund, data=all)
+head(model.sel(BHW, rank="AICc"),7) #Best: snull model
+hist(all$Bird_handWingIndex)
+#################       
+#4th) Birds Body Mass:
+BBM<-list()
+BBM[[1]]<-lm(birdBodyMassLog ~ 1,  data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+BBM[[2]]<-lm(birdBodyMassLog ~ rich_flora, data=all)
+BBM[[3]]<-lm(birdBodyMassLog ~ Fbeepol, data=all)
+BBM[[4]]<-lm(birdBodyMassLog ~ Fbeepol_abund, data=all)
+BBM[[5]]<-lm(birdBodyMassLog ~ Fbirdpol, data=all)
+BBM[[6]]<-lm(birdBodyMassLog ~ Fbirdpol_abund, data=all)
+BBM[[7]]<-lm(birdBodyMassLog ~ Fbutpol, data=all)
+BBM[[8]]<-lm(birdBodyMassLog ~ Fbutpol_abund, data=all)
+BBM[[9]]<-lm(birdBodyMassLog ~ Fbirdsd, data=all)
+BBM[[10]]<-lm(birdBodyMassLog ~ Fbirdsd_abund, data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+BBM[[11]]<-lm(birdBodyMassLog ~ plantDBH.mean, data=all)
+BBM[[12]]<-lm(birdBodyMassLog ~ plantDBH.max, data=all)
+BBM[[13]]<-lm(birdBodyMassLog ~ plantDBH_pol, data=all)
+BBM[[14]]<-lm(birdBodyMassLog ~ plantDBH_polB, data=all)
+BBM[[15]]<-lm(birdBodyMassLog ~ plantDBH_polM, data=all)
+BBM[[16]]<-lm(birdBodyMassLog ~ plantDBH_seeD_birds, data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+BBM[[17]]<-lm(birdBodyMassLog ~ plantWoodDensity, data=all)
+BBM[[18]]<-lm(birdBodyMassLog ~ plantWoodDensity_pol, data=all)
+BBM[[19]]<-lm(birdBodyMassLog ~ plantWoodDensity_polB, data=all)
+BBM[[20]]<-lm(birdBodyMassLog ~ plantWoodDensity_polM, data=all)
+BBM[[21]]<-lm(birdBodyMassLog ~ plantWoodDensity_seeDbirds, data=all)
+### Richness and abundance of Threathened tree species:
+BBM[[22]]<-lm(birdBodyMassLog ~ Fthreat, data=all)
+BBM[[23]]<-lm(birdBodyMassLog ~ Fthreat_abund, data=all)
+head(model.sel(BBM, rank="AICc"),7) #Best: null model
+#################       
+#4th) Birds Body Mass of threatened species:
+BBMt<-list()
+BBMt[[1]]<-lm(birdBodyMassLog_threat ~ 1,  data=all)
+##Richness and abundance of all flora, those pollinated or seed dispersed by animals
+BBMt[[2]]<-lm(birdBodyMassLog_threat ~ rich_flora, data=all)
+BBMt[[3]]<-lm(birdBodyMassLog_threat ~ Fbeepol, data=all)
+BBMt[[4]]<-lm(birdBodyMassLog_threat ~ Fbeepol_abund, data=all)
+BBMt[[5]]<-lm(birdBodyMassLog_threat ~ Fbirdpol, data=all)
+BBMt[[6]]<-lm(birdBodyMassLog_threat ~ Fbirdpol_abund, data=all)
+BBMt[[7]]<-lm(birdBodyMassLog_threat ~ Fbutpol, data=all)
+BBMt[[8]]<-lm(birdBodyMassLog_threat ~ Fbutpol_abund, data=all)
+BBMt[[9]]<-lm(birdBodyMassLog_threat ~ Fbirdsd, data=all)
+BBMt[[10]]<-lm(birdBodyMassLog_threat ~ Fbirdsd_abund, data=all)
+###DBH for all plants, and for those pollinated or dispersed by animals:
+BBMt[[11]]<-lm(birdBodyMassLog_threat ~ plantDBH.mean, data=all)
+BBMt[[12]]<-lm(birdBodyMassLog_threat ~ plantDBH.max, data=all)
+BBMt[[13]]<-lm(birdBodyMassLog_threat ~ plantDBH_pol, data=all)
+BBMt[[14]]<-lm(birdBodyMassLog_threat ~ plantDBH_polB, data=all)
+BBMt[[15]]<-lm(birdBodyMassLog_threat ~ plantDBH_polM, data=all)
+BBMt[[16]]<-lm(birdBodyMassLog_threat ~ plantDBH_seeD_birds, data=all)
+###Wood Density for all plants, and for those pollinated or dispersed by animals:
+BBMt[[17]]<-lm(birdBodyMassLog_threat ~ plantWoodDensity, data=all)
+BBMt[[18]]<-lm(birdBodyMassLog_threat ~ plantWoodDensity_pol, data=all)
+BBMt[[19]]<-lm(birdBodyMassLog_threat ~ plantWoodDensity_polB, data=all)
+BBMt[[20]]<-lm(birdBodyMassLog_threat ~ plantWoodDensity_polM, data=all)
+BBMt[[21]]<-lm(birdBodyMassLog_threat ~ plantWoodDensity_seeDbirds, data=all)
+### Richness and abundance of Threathened tree species:
+BBMt[[22]]<-lm(birdBodyMassLog_threat ~ Fthreat, data=all)
+BBMt[[23]]<-lm(birdBodyMassLog_threat ~ Fthreat_abund, data=all)
+head(model.sel(BBMt, rank="AICc"),7) #Best: null model
+
+
+
+
 
 
 Bd<-list()
@@ -343,7 +778,7 @@ visreg(B[[15]], "plantDBH_polM" , scale="response")
 levels(as.factor(birds$samplingLocationID))
 table(birds$birdSeedDiet)
 table(birds$birdFruitDiet)
-##We select only bee species classified as renter
+##We select only bird species classified as having fruit diet:
 Fruties<-birds %>% filter(birdFruitDiet!= 0)
 nrow(Fruties)
 jj<-table(Fruties$scientificName, Fruties$samplingLocationID) ##calculate adundance per species
@@ -377,7 +812,13 @@ FB[[20]]<-glm(FrutiesB ~ plantWoodDensity_polM, family="poisson", data=all)
 FB[[21]]<-glm(FrutiesB ~ plantWoodDensity_seeDbirds, family="poisson", data=all)
 head(model.sel(FB, rank="AICc"),7) #Best: null  model, nothing explains  Butterfly richness
 
+####Calculate other traits per animal species to use as response variable:
+#a) For bees: ITD , sociality, Nest type (renters)
+ITD<-aggregate(beeITDist~samplingLocationID, data=aaa, FUN=function(x) c(mean=mean(x)))
 
+
+#b) Bird size
+#c) Butterfly size 
 
 require(ggplot2)
 ###Calculatng mean values
